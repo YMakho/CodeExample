@@ -1,0 +1,52 @@
+services:
+  bookingservice.booking.api:
+    image: bookingapi:latest
+    container_name: bookings-api
+    build:
+      context: .
+      dockerfile: BookingService.Booking.Api/Dockerfile
+    ports:
+      - "5056:8080"
+      - "5057:8081"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DB_HOST: booking-service_bookings-db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - booking-service_rabbitmq
+      - booking-service_bookings-db
+  booking-service_rabbitmq:
+    image: rabbitmq:3-management
+    hostname: "rabbitmq"
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15672"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  booking-service_bookings-db:
+    image: postgres:latest
+    container_name: bookings-db
+    restart: always
+    environment:
+       PGUSER: bookings_admin
+       POSTGRES_DB: booking_service_bookings
+       POSTGRES_USER: bookings_admin
+       POSTGRES_PASSWORD: admin_bookings
+       PGDATA: /data/postgres/
+    volumes:
+      - ./.containers/database:/var/lib/postgressql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL","pg_isready -U <user>", "pg_isready -d booking-service_bookings-db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
